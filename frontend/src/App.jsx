@@ -32,6 +32,10 @@ function App() {
     const [userTimezone, setUserTimezone] = useState(defaultTZ);
     const [showSettings, setShowSettings] = useState(false);
 
+    // Display Toggles
+    const [displayOrphans, setDisplayOrphans] = useState(false);
+    const [hideBackground, setHideBackground] = useState(false); // NEW: Focus Mode toggle
+
     const tzOptions = useMemo(() => {
         const timeZones = Intl.supportedValuesOf ? Intl.supportedValuesOf('timeZone') : [defaultTZ, 'UTC'];
         const now = new Date();
@@ -98,7 +102,6 @@ function App() {
 
     const searchOptions = callsigns.map(cs => ({ value: cs, label: cs }));
 
-    // Shared style for our perfectly centered close buttons!
     const closeButtonStyle = {
         background: '#f1f5f9',
         border: 'none',
@@ -108,16 +111,21 @@ function App() {
         width: '28px',
         height: '28px',
         borderRadius: '50%',
-        display: 'flex',        // <-- This flex container
-        alignItems: 'center',   // <-- Vertically centers the X
-        justifyContent: 'center'// <-- Horizontally centers the X
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
     };
 
     return (
         <div style={{ position: 'relative', width: '100vw', height: '100vh', overflow: 'hidden', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
 
             <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 0 }}>
-                <FlightMap flightData={flightData} />
+                <FlightMap
+                    flightData={flightData}
+                    userTimeZone={userTimezone}
+                    displayOrphans={displayOrphans}
+                    hideBackground={hideBackground}
+                />
             </div>
 
             <div style={{
@@ -192,7 +200,6 @@ function App() {
                         pointerEvents: 'auto',
                         flexShrink: 0
                     }}>
-                        {/* Added Flex Header with perfectly centered close button */}
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
                             <div>
                                 <h3 style={{ margin: '0 0 4px 0', fontSize: '16px', color: '#0f172a' }}>Display Settings</h3>
@@ -233,6 +240,32 @@ function App() {
                                 })
                             }}
                         />
+
+                        {/* Map Control Settings */}
+                        <div style={{ marginTop: '20px', paddingTop: '16px', borderTop: '1px solid #f1f5f9' }}>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', color: '#0f172a', cursor: 'pointer', marginBottom: '12px' }}>
+                                <input
+                                    type="checkbox"
+                                    checked={displayOrphans}
+                                    onChange={(e) => setDisplayOrphans(e.target.checked)}
+                                    style={{ cursor: 'pointer', width: '16px', height: '16px', accentColor: '#3b82f6' }}
+                                />
+                                Show Disconnected Waypoints
+                            </label>
+
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', color: '#0f172a', cursor: 'pointer' }}>
+                                <input
+                                    type="checkbox"
+                                    checked={hideBackground}
+                                    onChange={(e) => setHideBackground(e.target.checked)}
+                                    style={{ cursor: 'pointer', width: '16px', height: '16px', accentColor: '#3b82f6' }}
+                                />
+                                Focus Mode
+                            </label>
+                            <p style={{ margin: '4px 0 0 24px', fontSize: '12px', color: '#64748b' }}>
+                                Hides background airways and waypoints when a flight is selected.
+                            </p>
+                        </div>
                     </div>
                 )}
 
@@ -262,7 +295,6 @@ function App() {
                                     <h2 style={{ margin: 0, color: '#1e40af', fontSize: '28px', fontWeight: '700', lineHeight: 1 }}>
                                         {flightData.summary.callsign}
                                     </h2>
-                                    {/* Applied the perfectly centered button style here too */}
                                     <button
                                         onClick={() => setSelectedCallsign('')}
                                         style={closeButtonStyle}
