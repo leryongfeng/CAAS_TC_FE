@@ -1,0 +1,12 @@
+version: '3.8'
+
+services:
+  frontend:
+    build:
+      context: . # THE FIX: Changed from 'frontend' to '.' (current directory)
+      args:
+        - API_BASE_URL=${API_BASE_URL}
+    container_name: caas_frontend
+    ports:
+      - "80:80"
+    restart: unless-stopped

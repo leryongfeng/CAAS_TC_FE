@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import Select from 'react-select';
-import FlightMap from './FlightMap';
+import FlightMap from './FlightMap.jsx';
 
 const formatTime = (utcString, targetTimeZone) => {
     if (!utcString) return '--:--';

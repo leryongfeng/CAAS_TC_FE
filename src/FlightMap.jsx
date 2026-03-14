@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { MapContainer, TileLayer, Polyline, CircleMarker, useMapEvents, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import LocationFinder from './LocationFinder';
+import LocationFinder from './LocationFinder.jsx';
 
 // THE FIX 1: Splitting lines that cross the dateline into Multi-Polylines
 // This stops the lines from "bouncing" or creating a spiderweb across the whole map!
