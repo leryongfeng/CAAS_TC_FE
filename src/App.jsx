@@ -66,13 +66,13 @@ function App() {
     }, []);
 
     useEffect(() => {
-        fetch('http://127.0.0.1:8000/api/flights/callsigns')
+        fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/flights/callsigns`)
             .then(res => res.json())
             .then(data => { if (data.callsigns) setCallsigns(data.callsigns); })
             .catch(err => console.error(err));
 
         // THE FIX: Fetching the entire geometry payload at startup
-        fetch('http://127.0.0.1:8000/api/airways/all')
+        fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/airways/all`)
             .then(res => res.json())
             .then(data => setGlobalAirways(data))
             .catch(err => console.error(err));
@@ -81,7 +81,7 @@ function App() {
     useEffect(() => {
         if (!selectedCallsign) { setFlightData(null); return; }
         setLoading(true);
-        fetch(`http://127.0.0.1:8000/api/flights/${selectedCallsign}/route`)
+        fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/${selectedCallsign}/route`)
             .then(res => { if (!res.ok) throw new Error('Flight not found'); return res.json(); })
             .then(data => { setFlightData(data); setLoading(false); })
             .catch(err => { console.error(err); setFlightData(null); setLoading(false); });

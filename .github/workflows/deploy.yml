@@ -21,7 +21,7 @@ jobs:
 
       - name: Build and Push Docker Image
         run: |
-          docker build --build-arg API_BASE_URL=${{ secrets.PROD_API_URL }} -t ${{ secrets.REGISTRY_LOGIN_SERVER }}/caas-tc-fe:${{ github.sha }} .
+          docker build --build-arg VITE_API_BASE_URL=${{ secrets.API_BASE_URL }} -t ${{ secrets.REGISTRY_LOGIN_SERVER }}/caas-tc-fe:${{ github.sha }} .
           docker push ${{ secrets.REGISTRY_LOGIN_SERVER }}/caas-tc-fe:${{ github.sha }}
 
       - name: Log in to Azure

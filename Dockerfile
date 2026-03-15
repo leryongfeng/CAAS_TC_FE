@@ -10,11 +10,11 @@ RUN npm install
 COPY . .
 
 # Catch the argument passed from docker-compose.yml
-ARG API_BASE_URL
+ARG VITE_API_BASE_URL
 # Set it as an environment variable for the build command
-ENV API_BASE_URL=$API_BASE_URL
+ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
 
-# Vite will now see the API_BASE_URL and bake it into the static files
+# Vite will now see the VITE_API_BASE_URL and bake it into the static files
 RUN npm run build
 
 # STAGE 2: Serve with Nginx
