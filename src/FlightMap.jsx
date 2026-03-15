@@ -112,7 +112,7 @@ const ChunkManager = ({ onDataCached, displayOrphans, showAirports, showFixes, s
                     if (!loadedChunks.current.has(chunkId)) {
                         loadedChunks.current.add(chunkId);
 
-                        fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/map/bounds`, {
+                        fetch(`${import.meta.env.API_BASE_URL || 'http://127.0.0.1:8000'}/api/map/bounds`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
