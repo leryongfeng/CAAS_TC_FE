@@ -20,7 +20,7 @@ const initialSettings = {
     showAirports: true,
     showFixes: false,
     showNavaids: false,
-    showAirways: false // Controls global visibility, but not retrieval anymore!
+    showAirways: false
 };
 
 const selectStyles = {
@@ -36,7 +36,9 @@ function App() {
     const [flightData, setFlightData] = useState(null);
     const [loading, setLoading] = useState(false);
 
-    // NEW: Stores the entire airway geometry dictionary on mount
+    // NEW: State for tracking the selected tactical alternate route
+    const [activePathOverlay, setActivePathOverlay] = useState(null);
+
     const [globalAirways, setGlobalAirways] = useState({});
     const [selectedAirway, setSelectedAirway] = useState(null);
 
@@ -72,7 +74,6 @@ function App() {
             .then(data => { if (data.callsigns) setCallsigns(data.callsigns); })
             .catch(err => console.error(err));
 
-        // THE FIX: Fetching the entire geometry payload at startup
         fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/airways/all`)
             .then(res => res.json())
             .then(data => setGlobalAirways(data))
@@ -80,8 +81,14 @@ function App() {
     }, []);
 
     useEffect(() => {
-        if (!selectedCallsign) { setFlightData(null); return; }
+        if (!selectedCallsign) {
+            setFlightData(null);
+            setActivePathOverlay(null); // Clear overlay on new flight select
+            return;
+        }
         setLoading(true);
+        setActivePathOverlay(null); // Reset overlay while loading new flight
+
         fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/api/flights/${selectedCallsign}/route`)
             .then(res => { if (!res.ok) throw new Error('Flight not found'); return res.json(); })
             .then(data => { setFlightData(data); setLoading(false); })
@@ -89,8 +96,6 @@ function App() {
     }, [selectedCallsign]);
 
     const searchOptions = callsigns.map(cs => ({ value: cs, label: cs }));
-
-    // Automatically populates the dropdown using the keys of the global geometry dictionary
     const airwaySearchOptions = Object.keys(globalAirways).map(aw => ({ value: aw, label: aw }));
 
     const openSettings = () => { setDraftSettings(settings); setShowSettings(true); };
@@ -112,9 +117,10 @@ function App() {
             <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 0 }}>
                 <FlightMap
                     flightData={flightData}
-                    globalAirways={globalAirways}            // Passed down
-                    selectedAirway={selectedAirway}          // Passed down
-                    setSelectedAirway={setSelectedAirway}    // Passed down
+                    activePathOverlay={activePathOverlay}    // Passed down
+                    globalAirways={globalAirways}
+                    selectedAirway={selectedAirway}
+                    setSelectedAirway={setSelectedAirway}
                     userTimeZone={settings.userTimezone}
                     displayOrphans={settings.displayOrphans}
                     hideBackground={settings.hideBackground}
@@ -129,7 +135,7 @@ function App() {
 
                 <div style={{ backgroundColor: 'rgba(15, 23, 42, 0.85)', backdropFilter: 'blur(4px)', borderRadius: '12px', border: '1px solid #334155', boxShadow: '0 8px 32px rgba(0,0,0,0.5)', padding: '20px', pointerEvents: 'auto', flexShrink: 0, zIndex: 10 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                        <h1 style={{ margin: 0, fontSize: '16px', color: '#f8fafc', fontWeight: '600', letterSpacing: '1px' }}>CAAS TRACKER</h1>
+                        <h1 style={{ margin: 0, fontSize: '16px', color: '#f8fafc', fontWeight: '600', letterSpacing: '1px' }}>CAAS TC TRACKER</h1>
                         <button onClick={openSettings} style={{ background: showSettings ? '#1e293b' : 'transparent', border: '1px solid transparent', cursor: 'pointer', fontSize: '12px', padding: '6px 12px', borderRadius: '4px', transition: 'background 0.2s, border 0.2s', borderColor: showSettings ? '#334155' : '#334155', color: '#94a3b8' }} title="Settings">SETTINGS</button>
                     </div>
 
@@ -247,16 +253,6 @@ function App() {
                                     </div>
                                 )}
 
-                                <div style={{ marginBottom: '32px' }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                                        <span style={{ fontSize: '13px', color: '#cbd5e1', fontWeight: '600' }}>Flight Progress</span>
-                                        <span style={{ fontSize: '13px', fontWeight: '700', color: '#38bdf8' }}>{flightData.times.percent_complete}%</span>
-                                    </div>
-                                    <div style={{ width: '100%', backgroundColor: '#1e293b', borderRadius: '999px', height: '10px', overflow: 'hidden', border: '1px solid #334155' }}>
-                                        <div style={{ width: `${flightData.times.percent_complete}%`, backgroundColor: flightData.times.percent_complete >= 100 ? '#22c55e' : '#38bdf8', height: '100%', transition: 'width 1s ease-in-out' }}></div>
-                                    </div>
-                                </div>
-
                                 <h3 style={{ fontSize: '12px', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', margin: '0 0 12px 0' }}>Operational Data</h3>
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                                     <div style={{ backgroundColor: '#1e293b', padding: '12px', borderRadius: '8px', border: '1px solid #334155' }}>
@@ -276,6 +272,37 @@ function App() {
                                         <p style={{ margin: '4px 0 0 0', fontWeight: '600', color: '#f8fafc', fontSize: '15px' }}>{flightData.capabilities.surv || 'N/A'}</p>
                                     </div>
                                 </div>
+
+                                {/* NEW: TACTICAL ROUTE PROPOSALS SECTION */}
+                                {flightData.proposals && flightData.proposals.length > 0 && (
+                                    <div style={{ marginTop: '32px' }}>
+                                        <h3 style={{ fontSize: '12px', color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.05em', margin: '0 0 12px 0' }}>Tactical Alternates</h3>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                            {flightData.proposals.map((prop, idx) => {
+                                                const isSelected = activePathOverlay === prop.path;
+                                                return (
+                                                    <div
+                                                        key={idx}
+                                                        onClick={() => setActivePathOverlay(isSelected ? null : prop.path)}
+                                                        style={{
+                                                            backgroundColor: isSelected ? 'rgba(56, 189, 248, 0.2)' : '#1e293b',
+                                                            border: `1px solid ${isSelected ? '#38bdf8' : '#334155'}`,
+                                                            padding: '12px 16px',
+                                                            borderRadius: '8px',
+                                                            cursor: 'pointer',
+                                                            transition: 'all 0.2s'
+                                                        }}
+                                                    >
+                                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                            <span style={{ fontSize: '12px', fontWeight: '700', color: isSelected ? '#f8fafc' : '#cbd5e1' }}>{prop.label}</span>
+                                                            <span style={{ fontSize: '12px', color: '#38bdf8', fontWeight: '600' }}>{prop.distance_km} KM</span>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         </>
                     ) : null}

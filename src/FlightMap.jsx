@@ -5,7 +5,6 @@ import 'leaflet/dist/leaflet.css';
 import LocationFinder from './LocationFinder.jsx';
 
 // THE FIX 1: Splitting lines that cross the dateline into Multi-Polylines
-// This stops the lines from "bouncing" or creating a spiderweb across the whole map!
 const processMultiPolyline = (coordsArray) => {
     if (!coordsArray || coordsArray.length === 0) return [];
     const lines = [];
@@ -16,14 +15,11 @@ const processMultiPolyline = (coordsArray) => {
         const currPt = coordsArray[i];
         const diff = currPt[1] - prevPt[1];
 
-        // If distance > 180, it crossed the Pacific dateline
         if (Math.abs(diff) > 180) {
-            // Bridge the gap outwardly so the line doesn't have a gap
             let adjustedLon = currPt[1] + (diff < 0 ? 360 : -360);
             currentLine.push([currPt[0], adjustedLon]);
             lines.push(currentLine);
 
-            // Start the new segment coming in from the other side
             let prevAdjustedLon = prevPt[1] + (diff < 0 ? -360 : 360);
             currentLine = [[prevPt[0], prevAdjustedLon], [currPt[0], currPt[1]]];
         } else {
@@ -31,7 +27,7 @@ const processMultiPolyline = (coordsArray) => {
         }
     }
     lines.push(currentLine);
-    return lines; // Returns an array of line segments
+    return lines;
 };
 
 // Camera Panning Modules
@@ -64,7 +60,7 @@ const AirwayPanner = ({ selectedAirway, globalAirways }) => {
 const BoundsTracker = ({ setRenderBounds }) => {
     const map = useMap();
     const updateBounds = () => {
-        const b = map.getBounds().pad(0.5); // 50% invisible buffer
+        const b = map.getBounds().pad(0.5);
         setRenderBounds({ south: b.getSouth(), north: b.getNorth(), west: b.getWest(), east: b.getEast() });
     };
     useEffect(() => {
@@ -152,7 +148,7 @@ const GlobalMapEvents = ({ setSelectedAirway }) => {
 
 // 4. The Main Map Component
 const FlightMap = ({
-                       flightData, globalAirways, selectedAirway, setSelectedAirway,
+                       flightData, activePathOverlay, globalAirways, selectedAirway, setSelectedAirway,
                        userTimeZone, displayOrphans, hideBackground, showAirports, showFixes, showNavaids, showAirways
                    }) => {
     const defaultCenter = [1.3688, 103.9803];
@@ -175,7 +171,6 @@ const FlightMap = ({
     };
 
     // THE FIX 2: Dynamic Offset Generator
-    // Instead of hardcoding 3 maps, this tracks your camera and generates phantom maps infinitely in the direction you are scrolling!
     const activeOffsets = useMemo(() => {
         if (!renderBounds) return [-360, 0, 360];
         const startWorld = Math.floor(renderBounds.west / 360);
@@ -198,6 +193,11 @@ const FlightMap = ({
 
     // Pre-process active flight path into a Multi-Polyline
     const activeFlightMultiLine = hasActiveFlight ? processMultiPolyline(flightData.path.map(pt => pt.coords)) : [];
+
+    // NEW: Pre-process the active proposal overlay path
+    const proposedMultiLine = (activePathOverlay && activePathOverlay.length > 0)
+        ? processMultiPolyline(activePathOverlay.map(pt => pt.coords))
+        : [];
 
     let airwaysToRender = {};
     if (hasActiveFlight && hideBackground) airwaysToRender = { ...flightData.active_airways };
@@ -229,7 +229,6 @@ const FlightMap = ({
                 center={defaultCenter}
                 zoom={6}
                 minZoom={3}
-                // Allow extreme infinite scrolling on X-axis, strictly block Y-axis scrolling
                 maxBounds={[[-90, -10000], [90, 10000]]}
                 maxBoundsViscosity={1.0}
                 worldCopyJump={false}
@@ -292,20 +291,37 @@ const FlightMap = ({
                     });
                 })()}
 
-                {/* 2C. The Active Flight Path */}
+                {/* --- LAYER 2C: THE ACTIVE FLIGHT PATH --- */}
                 {hasActiveFlight && activeOffsets.map(offset => {
                     if (!activeFlightMultiLine.flat(1).some(pt => isVisible(pt[0], pt[1] + offset))) return null;
                     const offsetMultiLine = activeFlightMultiLine.map(segment => segment.map(pt => [pt[0], pt[1] + offset]));
 
                     return (
                         <div key={`flight-path-group-${offset}`}>
-                            <Polyline positions={offsetMultiLine} pathOptions={{ color: "#06b6d4", weight: 3, opacity: 1 }} interactive={false} />
+                            {/* Changed Active Flight to White to match ops terminal aesthetic */}
+                            <Polyline positions={offsetMultiLine} pathOptions={{ color: "#f8fafc", weight: 3, opacity: 1 }} interactive={false} />
+
                             {flightData.route_metadata?.alternate_coords && (
                                 <Polyline
                                     positions={processMultiPolyline([ flightData.path[flightData.path.length - 1].coords, flightData.route_metadata.alternate_coords ]).map(segment => segment.map(pt => [pt[0], pt[1] + offset]))}
                                     pathOptions={{ color: "#f59e0b", weight: 2, dashArray: "6, 8", opacity: 0.8 }} interactive={false}
                                 />
                             )}
+                        </div>
+                    );
+                })}
+
+                {/* --- LAYER 2D: TACTICAL PROPOSAL PATH (NEW) --- */}
+                {activePathOverlay && activeOffsets.map(offset => {
+                    if (!proposedMultiLine.flat(1).some(pt => isVisible(pt[0], pt[1] + offset))) return null;
+                    const offsetMultiLine = proposedMultiLine.map(segment => segment.map(pt => [pt[0], pt[1] + offset]));
+
+                    return (
+                        <div key={`proposed-path-group-${offset}`}>
+                            {/* The Underglow Effect */}
+                            <Polyline positions={offsetMultiLine} pathOptions={{ color: "#38bdf8", weight: 8, opacity: 0.2 }} interactive={false} />
+                            {/* The Dashed Cyan Line */}
+                            <Polyline positions={offsetMultiLine} pathOptions={{ color: "#38bdf8", weight: 3, dashArray: "10, 10", opacity: 1 }} interactive={false} />
                         </div>
                     );
                 })}
