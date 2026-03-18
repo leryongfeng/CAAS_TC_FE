@@ -59,6 +59,8 @@ graph TD
 
 ## Future Architectural Enhancements
 
+*(Note: Enhancements requiring cross-stack coordination, such as WebSocket integration and push-based rerouting, are in the Backend repository README).*
+
 ### WebGL Rendering Migration
 * **Concept:** Migrate the map rendering engine from Leaflet (DOM/SVG based) to a WebGL-accelerated framework like deck.gl or Mapbox GL JS.
 * **Rationale:** * While the current Viewport Chunking algorithm efficiently culls static waypoints to protect the DOM, rendering tens of thousands of live, continuously moving aircraft globally will eventually bottleneck the browser's main thread.
